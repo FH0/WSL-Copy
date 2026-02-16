@@ -2,7 +2,7 @@
   "name": "wsl-copy",
   "displayName": "WSL Copy",
   "description": "Copy real files from WSL to Windows clipboard for pasting to apps like WeChat",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "wsl-copy",
   "engines": {
     "vscode": "^1.74.0",

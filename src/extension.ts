@@ -1,42 +1,25 @@
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
+import { promisify } from 'util';
 
+const execAsync = promisify(exec);
 const POWERSHELL_PATH = '/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
 
-function wslPathToWindows(wslPath: string): string {
-    if (wslPath.startsWith('/mnt/')) {
-        const parts = wslPath.substring(5).split('/');
-        const drive = parts[0].toUpperCase();
-        const rest = parts.slice(1).join('\\');
-        return `${drive}:\\${rest}`;
-    }
-    const distro = process.env.WSL_DISTRO_NAME || 'Ubuntu';
-    return `\\\\wsl$\\${distro}${wslPath.replace(/\//g, '\\')}`;
+async function wslPathToWindows(wslPath: string): Promise<string> {
+    const { stdout } = await execAsync(`wslpath -w '${wslPath.replace(/'/g, "'\\''")}'`);
+    return stdout.trim();
 }
 
-function buildPowerShellScript(windowsPaths: string[]): string {
-    const filesAdd = windowsPaths.map(p => `$files.Add('${p}')`).join('\n');
-    return `
-Add-Type -AssemblyName System.Windows.Forms
-$files = New-Object System.Collections.Specialized.StringCollection
-${filesAdd}
-[System.Windows.Forms.Clipboard]::SetFileDropList($files)
-`;
+function buildPathList(windowsPaths: string[]): string {
+    return windowsPaths.map(p => `"${p}"`).join(',');
 }
 
-function copyFilesToClipboard(windowsPaths: string[]): Promise<void> {
+async function copyFilesToClipboard(windowsPaths: string[]): Promise<void> {
+    const pathList = buildPathList(windowsPaths);
+    const command = `"${POWERSHELL_PATH}" -NoProfile -STA -ExecutionPolicy Bypass -Command 'Set-Clipboard -Path ${pathList}'`;
     return new Promise((resolve, reject) => {
-        const tempScript = path.join(os.tmpdir(), `wsl-copy-${Date.now()}.ps1`);
-        fs.writeFileSync(tempScript, buildPowerShellScript(windowsPaths), 'utf8');
-
-        const winScriptPath = wslPathToWindows(tempScript);
-        const command = `"${POWERSHELL_PATH}" -NoProfile -STA -ExecutionPolicy Bypass -File "${winScriptPath}"`;
-
-        exec(command, (error, _, stderr) => {
-            fs.unlinkSync(tempScript);
+        exec(command, (error, stdout, stderr) => {
             if (error) {
                 reject(new Error(stderr || error.message));
             } else {
@@ -65,14 +48,12 @@ function formatSuccessMessage(uris: vscode.Uri[]): string {
 
 async function handleCopyRealFile(uri: vscode.Uri | undefined, selectedUris: vscode.Uri[] | undefined): Promise<void> {
     const uris = getSelectedUris(uri, selectedUris);
-
     if (uris.length === 0) {
         vscode.window.showErrorMessage('No file selected');
         return;
     }
-
     try {
-        const windowsPaths = uris.map(u => wslPathToWindows(u.fsPath));
+        const windowsPaths = await Promise.all(uris.map(u => wslPathToWindows(u.fsPath)));
         await copyFilesToClipboard(windowsPaths);
         vscode.window.showInformationMessage(formatSuccessMessage(uris));
     } catch (error) {
