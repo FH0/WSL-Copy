@@ -1,0 +1,47 @@
+{
+  "name": "wsl-copy",
+  "displayName": "WSL Copy",
+  "description": "Copy real files from WSL to Windows clipboard for pasting to apps like WeChat",
+  "version": "0.0.1",
+  "publisher": "wsl-copy",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wsl-copy.copyRealFile",
+        "title": "Copy Real File"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "wsl-copy.copyRealFile",
+          "group": "5_cutcopypaste@99"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.0.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/user/wsl-copy"
+  }
+}
